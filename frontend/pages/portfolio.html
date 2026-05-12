@@ -8,7 +8,6 @@
 </head>
 <body>
 
-    <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-logo">💹 FinVest</div>
         <div class="navbar-links">
@@ -26,7 +25,6 @@
     <div class="main-content">
         <h1 class="page-title">💼 My Portfolio</h1>
 
-        <!-- Summary Cards -->
         <div class="cards-grid">
             <div class="card">
                 <div class="card-label">Total Invested</div>
@@ -46,7 +44,6 @@
             </div>
         </div>
 
-        <!-- Add Investment -->
         <div class="table-container" style="margin-bottom:25px;">
             <h2>➕ Add Investment</h2>
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-top:15px;">
@@ -60,7 +57,6 @@
             <p id="add-msg" style="margin-top:10px; font-size:0.9rem;"></p>
         </div>
 
-        <!-- Portfolio Table -->
         <div class="table-container">
             <h2>📊 My Investments</h2>
             <table>
@@ -83,90 +79,66 @@
         </div>
     </div>
 
+    <script src="../js/app.js"></script>
     <script>
-        const username = localStorage.getItem('username') || 'user1';
-        document.getElementById('username-display').textContent = username;
+        checkLogin();
 
         async function loadPortfolio() {
-            try {
-                const res = await fetch(`http://127.0.0.1:8002/portfolio/${username}`);
-                const data = await res.json();
+            const data = await fetchData(`${API.portfolio}/portfolio/${getUsername()}`);
+            if (!data || !data.success) return;
 
-                if (data.success) {
-                    const pl = data.profit_loss;
-                    document.getElementById('total-invested').textContent = `$${data.total_invested.toLocaleString()}`;
-                    document.getElementById('current-value').textContent = `$${data.total_current_value.toLocaleString()}`;
-                    
-                    const plEl = document.getElementById('profit-loss');
-                    plEl.textContent = `$${pl.toLocaleString()}`;
-                    plEl.className = `card-value ${pl >= 0 ? 'positive' : 'negative'}`;
+            const pl = data.profit_loss;
+            document.getElementById('total-invested').textContent = formatMoney(data.total_invested);
+            document.getElementById('current-value').textContent = formatMoney(data.total_current_value);
 
-                    const plPct = document.getElementById('pl-percent');
-                    plPct.textContent = `${data.profit_loss_percent}%`;
-                    plPct.className = `card-value ${pl >= 0 ? 'positive' : 'negative'}`;
+            const plEl = document.getElementById('profit-loss');
+            plEl.textContent = formatMoney(pl);
+            plEl.className = `card-value ${getPLClass(pl)}`;
 
-                    const tbody = document.getElementById('portfolio-table');
-                    tbody.innerHTML = '';
-                    data.investments.forEach(inv => {
-                        const totalValue = inv.shares * inv.current_price;
-                        const pl = totalValue - (inv.shares * inv.buy_price);
-                        const isPos = pl >= 0;
-                        tbody.innerHTML += `
-                            <tr>
-                                <td><strong>${inv.symbol}</strong></td>
-                                <td style="color:#8892a4">${inv.name}</td>
-                                <td>${inv.shares}</td>
-                                <td>$${inv.buy_price}</td>
-                                <td>$${inv.current_price}</td>
-                                <td>$${totalValue.toFixed(2)}</td>
-                                <td class="${isPos ? 'positive' : 'negative'}">$${pl.toFixed(2)}</td>
-                                <td>
-                                    <button onclick="removeInvestment('${inv.symbol}')" 
-                                    style="padding:5px 10px; background:transparent; border:1px solid #ff4d4d; color:#ff4d4d; border-radius:5px; cursor:pointer; font-size:0.8rem;">
-                                    Remove</button>
-                                </td>
-                            </tr>`;
-                    });
-                }
-            } catch (err) {
-                document.getElementById('portfolio-table').innerHTML = '<tr><td colspan="8">Error loading</td></tr>';
-            }
+            const plPct = document.getElementById('pl-percent');
+            plPct.textContent = `${data.profit_loss_percent}%`;
+            plPct.className = `card-value ${getPLClass(pl)}`;
+
+            const tbody = document.getElementById('portfolio-table');
+            tbody.innerHTML = '';
+            data.investments.forEach(inv => {
+                const totalValue = inv.shares * inv.current_price;
+                const pl = totalValue - (inv.shares * inv.buy_price);
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${inv.symbol}</strong></td>
+                        <td style="color:#8892a4">${inv.name}</td>
+                        <td>${inv.shares}</td>
+                        <td>${formatMoney(inv.buy_price)}</td>
+                        <td>${formatMoney(inv.current_price)}</td>
+                        <td>${formatMoney(totalValue.toFixed(2))}</td>
+                        <td class="${getPLClass(pl)}">${formatMoney(pl.toFixed(2))}</td>
+                        <td>
+                            <button onclick="removeInvestment('${inv.symbol}')"
+                            style="padding:5px 10px; background:transparent; border:1px solid #ff4d4d; color:#ff4d4d; border-radius:5px; cursor:pointer; font-size:0.8rem;">
+                            Remove</button>
+                        </td>
+                    </tr>`;
+            });
         }
 
         async function addInvestment() {
-            const symbol = document.getElementById('add-symbol').value;
-            const name = document.getElementById('add-name').value;
-            const shares = document.getElementById('add-shares').value;
-            const buy_price = document.getElementById('add-buy-price').value;
-            const current_price = document.getElementById('add-current-price').value;
-            const msg = document.getElementById('add-msg');
-
-            try {
-                const res = await fetch('http://127.0.0.1:8002/portfolio/add', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, symbol, name, shares: parseFloat(shares), buy_price: parseFloat(buy_price), current_price: parseFloat(current_price) })
-                });
-                const data = await res.json();
-                msg.style.color = data.success ? '#00d09c' : '#ff4d4d';
-                msg.textContent = data.message;
-                if (data.success) loadPortfolio();
-            } catch (err) {
-                msg.style.color = '#ff4d4d';
-                msg.textContent = 'Error adding investment!';
-            }
+            const body = {
+                username: getUsername(),
+                symbol: document.getElementById('add-symbol').value,
+                name: document.getElementById('add-name').value,
+                shares: parseFloat(document.getElementById('add-shares').value),
+                buy_price: parseFloat(document.getElementById('add-buy-price').value),
+                current_price: parseFloat(document.getElementById('add-current-price').value)
+            };
+            const data = await postData(`${API.portfolio}/portfolio/add`, body);
+            showMessage('add-msg', data.message, data.success);
+            if (data.success) loadPortfolio();
         }
 
         async function removeInvestment(symbol) {
-            try {
-                await fetch(`http://127.0.0.1:8002/portfolio/${username}/${symbol}`, { method: 'DELETE' });
-                loadPortfolio();
-            } catch (err) {}
-        }
-
-        function logout() {
-            localStorage.removeItem('username');
-            window.location.href = '../index.html';
+            await deleteData(`${API.portfolio}/portfolio/${getUsername()}/${symbol}`);
+            loadPortfolio();
         }
 
         loadPortfolio();

@@ -45,3 +45,12 @@ def login(user: LoginUser):
         return {"success": False, "message": "User not found"}
     if users_db[user.email]["password"] != user.password:
         return {"success": False, "message": "Wrong password"}
+    return {
+        "success": True,
+        "message": "Login successful",
+        "username": users_db[user.email]["username"]
+    }
+
+@app.get("/users")
+def get_users():
+    return {"total_users": len(users_db), "users": list(users_db.keys())}

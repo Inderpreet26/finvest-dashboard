@@ -8,7 +8,6 @@
 </head>
 <body>
 
-    <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-logo">💹 FinVest</div>
         <div class="navbar-links">
@@ -26,41 +25,33 @@
         </div>
     </nav>
 
-    <!-- Notifications Panel -->
     <div id="notif-panel" style="display:none; position:fixed; top:70px; right:20px; width:350px; background:#111827; border:1px solid #1e2d40; border-radius:15px; padding:20px; z-index:999; box-shadow:0 10px 40px rgba(0,0,0,0.5);">
         <h3 style="margin-bottom:15px; color:#fff;">🔔 Notifications</h3>
         <div id="notif-list"><p class="loading">Loading...</p></div>
     </div>
 
-    <!-- Main Content -->
     <div class="main-content">
         <h1 class="page-title">📊 Dashboard</h1>
 
-        <!-- Summary Cards -->
         <div class="cards-grid">
             <div class="card">
                 <div class="card-label">Total Invested</div>
                 <div class="card-value" id="total-invested">Loading...</div>
-                <div class="card-change" id="invested-change"></div>
             </div>
             <div class="card">
                 <div class="card-label">Current Value</div>
                 <div class="card-value" id="current-value">Loading...</div>
-                <div class="card-change positive" id="value-change"></div>
             </div>
             <div class="card">
                 <div class="card-label">Profit / Loss</div>
                 <div class="card-value" id="profit-loss">Loading...</div>
-                <div class="card-change" id="pl-percent"></div>
             </div>
             <div class="card">
                 <div class="card-label">Market Status</div>
-                <div class="card-value" style="color:#00d09c;" id="market-status">Loading...</div>
-                <div class="card-change" id="market-info"></div>
+                <div class="card-value positive" id="market-status">Loading...</div>
             </div>
         </div>
 
-        <!-- Stocks + Crypto -->
         <div class="section-grid">
             <div class="table-container">
                 <h2>📈 Top Stocks</h2>
@@ -97,7 +88,6 @@
             </div>
         </div>
 
-        <!-- Latest News -->
         <div class="table-container">
             <h2>📰 Latest Financial News</h2>
             <div class="news-grid" id="news-container">
@@ -106,123 +96,91 @@
         </div>
     </div>
 
+    <script src="../js/app.js"></script>
     <script>
-        // Check login
-        const username = localStorage.getItem('username') || 'user1';
-        document.getElementById('username-display').textContent = username;
+        checkLogin();
 
-        // Load Portfolio Summary
         async function loadPortfolio() {
-            try {
-                const res = await fetch(`http://127.0.0.1:8002/portfolio/${username}`);
-                const data = await res.json();
-                if (data.success) {
-                    document.getElementById('total-invested').textContent = `$${data.total_invested.toLocaleString()}`;
-                    document.getElementById('current-value').textContent = `$${data.total_current_value.toLocaleString()}`;
-                    const pl = data.profit_loss;
-                    const plEl = document.getElementById('profit-loss');
-                    plEl.textContent = `$${pl.toLocaleString()}`;
-                    plEl.className = `card-value ${pl >= 0 ? 'positive' : 'negative'}`;
-                    document.getElementById('pl-percent').textContent = `${data.profit_loss_percent}%`;
-                    document.getElementById('pl-percent').className = `card-change ${pl >= 0 ? 'positive' : 'negative'}`;
-                }
-            } catch (err) {
-                document.getElementById('total-invested').textContent = 'Error';
+            const data = await fetchData(`${API.portfolio}/portfolio/${getUsername()}`);
+            if (data && data.success) {
+                document.getElementById('total-invested').textContent = formatMoney(data.total_invested);
+                document.getElementById('current-value').textContent = formatMoney(data.total_current_value);
+                const plEl = document.getElementById('profit-loss');
+                plEl.textContent = formatMoney(data.profit_loss);
+                plEl.className = `card-value ${getPLClass(data.profit_loss)}`;
             }
         }
 
-        // Load Stocks
         async function loadStocks() {
-            try {
-                const res = await fetch('http://127.0.0.1:8003/stocks');
-                const data = await res.json();
-                const tbody = document.getElementById('stocks-table');
-                tbody.innerHTML = '';
-                Object.entries(data.stocks).forEach(([symbol, stock]) => {
-                    const isPos = stock.change >= 0;
-                    tbody.innerHTML += `
-                        <tr>
-                            <td><strong>${symbol}</strong></td>
-                            <td style="color:#8892a4">${stock.name}</td>
-                            <td>$${stock.price.toLocaleString()}</td>
-                            <td class="${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}${stock.change}%</td>
-                        </tr>`;
-                });
-            } catch (err) {
-                document.getElementById('stocks-table').innerHTML = '<tr><td colspan="4">Error loading</td></tr>';
-            }
+            const data = await fetchData(`${API.market}/stocks`);
+            if (!data) return;
+            const tbody = document.getElementById('stocks-table');
+            tbody.innerHTML = '';
+            Object.entries(data.stocks).forEach(([symbol, stock]) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${symbol}</strong></td>
+                        <td style="color:#8892a4">${stock.name}</td>
+                        <td>${formatMoney(stock.price)}</td>
+                        <td class="${getPLClass(stock.change)}">${getChangeText(stock.change)}</td>
+                    </tr>`;
+            });
         }
 
-        // Load Crypto
         async function loadCrypto() {
-            try {
-                const res = await fetch('http://127.0.0.1:8003/crypto');
-                const data = await res.json();
-                const tbody = document.getElementById('crypto-table');
-                tbody.innerHTML = '';
-                Object.entries(data.crypto).forEach(([symbol, coin]) => {
-                    const isPos = coin.change >= 0;
-                    tbody.innerHTML += `
-                        <tr>
-                            <td><strong>${symbol}</strong></td>
-                            <td style="color:#8892a4">${coin.name}</td>
-                            <td>$${coin.price.toLocaleString()}</td>
-                            <td class="${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}${coin.change}%</td>
-                        </tr>`;
-                });
-            } catch (err) {
-                document.getElementById('crypto-table').innerHTML = '<tr><td colspan="4">Error loading</td></tr>';
-            }
+            const data = await fetchData(`${API.market}/crypto`);
+            if (!data) return;
+            const tbody = document.getElementById('crypto-table');
+            tbody.innerHTML = '';
+            Object.entries(data.crypto).forEach(([symbol, coin]) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${symbol}</strong></td>
+                        <td style="color:#8892a4">${coin.name}</td>
+                        <td>${formatMoney(coin.price)}</td>
+                        <td class="${getPLClass(coin.change)}">${getChangeText(coin.change)}</td>
+                    </tr>`;
+            });
         }
 
-        // Load Market Summary
         async function loadMarket() {
-            try {
-                const res = await fetch('http://127.0.0.1:8003/market/summary');
-                const data = await res.json();
-                document.getElementById('market-status').textContent = data.market_status;
-                document.getElementById('market-info').textContent = `Top Gainer: ${data.top_gainer} | Top Loser: ${data.top_loser}`;
-            } catch (err) {}
+            const data = await fetchData(`${API.market}/market/summary`);
+            if (!data) return;
+            document.getElementById('market-status').textContent = data.market_status;
         }
 
-        // Load News
         async function loadNews() {
-            try {
-                const res = await fetch('http://127.0.0.1:8004/news');
-                const data = await res.json();
-                const container = document.getElementById('news-container');
-                container.innerHTML = '';
-                data.news.slice(0, 3).forEach(news => {
-                    container.innerHTML += `
-                        <div class="news-card">
-                            <span class="news-category">${news.category}</span>
-                            <div class="news-title">${news.title}</div>
-                            <div class="news-summary">${news.summary}</div>
-                            <div class="news-footer">
-                                <span>${news.source} · ${news.time}</span>
-                                <span class="news-sentiment ${news.bullish ? 'bullish' : 'bearish'}">${news.bullish ? '🟢 Bullish' : '🔴 Bearish'}</span>
-                            </div>
-                        </div>`;
-                });
-            } catch (err) {}
+            const data = await fetchData(`${API.news}/news`);
+            if (!data) return;
+            const container = document.getElementById('news-container');
+            container.innerHTML = '';
+            data.news.slice(0, 3).forEach(news => {
+                container.innerHTML += `
+                    <div class="news-card">
+                        <span class="news-category">${news.category}</span>
+                        <div class="news-title">${news.title}</div>
+                        <div class="news-summary">${news.summary}</div>
+                        <div class="news-footer">
+                            <span>${news.source} · ${news.time}</span>
+                            <span class="news-sentiment ${news.bullish ? 'bullish' : 'bearish'}">${news.bullish ? '🟢 Bullish' : '🔴 Bearish'}</span>
+                        </div>
+                    </div>`;
+            });
         }
 
-        // Load Notifications
         async function loadNotifications() {
-            try {
-                const res = await fetch(`http://127.0.0.1:8007/notifications/${username}`);
-                const data = await res.json();
-                document.getElementById('notif-count').textContent = data.unread || 0;
-                const list = document.getElementById('notif-list');
-                list.innerHTML = '';
-                data.notifications.forEach(n => {
-                    list.innerHTML += `
-                        <div style="padding:10px; border-bottom:1px solid #1e2d40; opacity:${n.read ? '0.5' : '1'}">
-                            <div style="font-size:0.85rem; color:#fff">${n.message}</div>
-                            <div style="font-size:0.75rem; color:#8892a4; margin-top:4px">${n.time}</div>
-                        </div>`;
-                });
-            } catch (err) {}
+            const data = await fetchData(`${API.notification}/notifications/${getUsername()}`);
+            if (!data) return;
+            document.getElementById('notif-count').textContent = data.unread || 0;
+            const list = document.getElementById('notif-list');
+            list.innerHTML = '';
+            data.notifications.forEach(n => {
+                list.innerHTML += `
+                    <div style="padding:10px; border-bottom:1px solid #1e2d40; opacity:${n.read ? '0.5' : '1'}">
+                        <div style="font-size:0.85rem; color:#fff">${n.message}</div>
+                        <div style="font-size:0.75rem; color:#8892a4; margin-top:4px">${n.time}</div>
+                    </div>`;
+            });
         }
 
         function toggleNotifications() {
@@ -230,12 +188,6 @@
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
         }
 
-        function logout() {
-            localStorage.removeItem('username');
-            window.location.href = '../index.html';
-        }
-
-        // Load everything
         loadPortfolio();
         loadStocks();
         loadCrypto();

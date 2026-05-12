@@ -8,7 +8,6 @@
 </head>
 <body>
 
-    <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-logo">💹 FinVest</div>
         <div class="navbar-links">
@@ -26,7 +25,6 @@
     <div class="main-content">
         <h1 class="page-title">📰 Financial News</h1>
 
-        <!-- Sentiment Cards -->
         <div class="cards-grid">
             <div class="card">
                 <div class="card-label">Overall Sentiment</div>
@@ -46,7 +44,6 @@
             </div>
         </div>
 
-        <!-- Category Filter -->
         <div style="margin-bottom:25px; display:flex; gap:10px; flex-wrap:wrap;">
             <button class="tab-btn active" onclick="filterNews('all', this)">All</button>
             <button class="tab-btn" onclick="filterNews('Stocks', this)">Stocks</button>
@@ -55,38 +52,33 @@
             <button class="tab-btn" onclick="filterNews('Technology', this)">Technology</button>
         </div>
 
-        <!-- News Grid -->
         <div class="news-grid" id="news-container">
             <p class="loading">Loading...</p>
         </div>
     </div>
 
+    <script src="../js/app.js"></script>
     <script>
-        const username = localStorage.getItem('username') || 'user1';
-        document.getElementById('username-display').textContent = username;
+        checkLogin();
 
         let allNews = [];
 
         async function loadSentiment() {
-            try {
-                const res = await fetch('http://127.0.0.1:8004/news/sentiment/summary');
-                const data = await res.json();
-                const sentEl = document.getElementById('overall-sentiment');
-                sentEl.textContent = data.overall_sentiment;
-                sentEl.className = `card-value ${data.overall_sentiment === 'Bullish' ? 'positive' : 'negative'}`;
-                document.getElementById('bullish-count').textContent = data.bullish;
-                document.getElementById('bearish-count').textContent = data.bearish;
-            } catch (err) {}
+            const data = await fetchData(`${API.news}/news/sentiment/summary`);
+            if (!data) return;
+            const sentEl = document.getElementById('overall-sentiment');
+            sentEl.textContent = data.overall_sentiment;
+            sentEl.className = `card-value ${data.overall_sentiment === 'Bullish' ? 'positive' : 'negative'}`;
+            document.getElementById('bullish-count').textContent = data.bullish;
+            document.getElementById('bearish-count').textContent = data.bearish;
         }
 
         async function loadNews() {
-            try {
-                const res = await fetch('http://127.0.0.1:8004/news');
-                const data = await res.json();
-                allNews = data.news;
-                document.getElementById('total-news').textContent = data.total;
-                renderNews(allNews);
-            } catch (err) {}
+            const data = await fetchData(`${API.news}/news`);
+            if (!data) return;
+            allNews = data.news;
+            document.getElementById('total-news').textContent = data.total;
+            renderNews(allNews);
         }
 
         function renderNews(news) {
@@ -115,16 +107,7 @@
         function filterNews(category, btn) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            if (category === 'all') {
-                renderNews(allNews);
-            } else {
-                renderNews(allNews.filter(n => n.category === category));
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('username');
-            window.location.href = '../index.html';
+            renderNews(category === 'all' ? allNews : allNews.filter(n => n.category === category));
         }
 
         loadSentiment();

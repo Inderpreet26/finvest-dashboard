@@ -8,7 +8,6 @@
 </head>
 <body>
 
-    <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-logo">💹 FinVest</div>
         <div class="navbar-links">
@@ -26,7 +25,6 @@
     <div class="main-content">
         <h1 class="page-title">📈 Market</h1>
 
-        <!-- Market Summary Cards -->
         <div class="cards-grid">
             <div class="card">
                 <div class="card-label">Market Status</div>
@@ -46,7 +44,6 @@
             </div>
         </div>
 
-        <!-- Watchlist Add -->
         <div class="table-container" style="margin-bottom:25px;">
             <h2>👀 Add to Watchlist</h2>
             <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
@@ -60,7 +57,6 @@
         </div>
 
         <div class="section-grid">
-            <!-- Stocks Table -->
             <div class="table-container">
                 <h2>📊 Stocks</h2>
                 <table>
@@ -78,7 +74,6 @@
                 </table>
             </div>
 
-            <!-- Crypto Table -->
             <div class="table-container">
                 <h2>🪙 Cryptocurrency</h2>
                 <table>
@@ -97,7 +92,6 @@
             </div>
         </div>
 
-        <!-- Watchlist -->
         <div class="table-container">
             <h2>⭐ My Watchlist</h2>
             <table>
@@ -117,120 +111,92 @@
         </div>
     </div>
 
+    <script src="../js/app.js"></script>
     <script>
-        const username = localStorage.getItem('username') || 'user1';
-        document.getElementById('username-display').textContent = username;
+        checkLogin();
 
         async function loadMarketSummary() {
-            try {
-                const res = await fetch('http://127.0.0.1:8003/market/summary');
-                const data = await res.json();
-                document.getElementById('market-status').textContent = data.market_status;
-                document.getElementById('total-stocks').textContent = data.total_stocks;
-                document.getElementById('top-gainer').textContent = data.top_gainer;
-                document.getElementById('top-loser').textContent = data.top_loser;
-            } catch (err) {}
+            const data = await fetchData(`${API.market}/market/summary`);
+            if (!data) return;
+            document.getElementById('market-status').textContent = data.market_status;
+            document.getElementById('total-stocks').textContent = data.total_stocks;
+            document.getElementById('top-gainer').textContent = data.top_gainer;
+            document.getElementById('top-loser').textContent = data.top_loser;
         }
 
         async function loadStocks() {
-            try {
-                const res = await fetch('http://127.0.0.1:8003/stocks');
-                const data = await res.json();
-                const tbody = document.getElementById('stocks-table');
-                tbody.innerHTML = '';
-                Object.entries(data.stocks).forEach(([symbol, stock]) => {
-                    const isPos = stock.change >= 0;
-                    tbody.innerHTML += `
-                        <tr>
-                            <td><strong>${symbol}</strong></td>
-                            <td style="color:#8892a4">${stock.name}</td>
-                            <td>$${stock.price.toLocaleString()}</td>
-                            <td class="${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}${stock.change}%</td>
-                        </tr>`;
-                });
-            } catch (err) {}
+            const data = await fetchData(`${API.market}/stocks`);
+            if (!data) return;
+            const tbody = document.getElementById('stocks-table');
+            tbody.innerHTML = '';
+            Object.entries(data.stocks).forEach(([symbol, stock]) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${symbol}</strong></td>
+                        <td style="color:#8892a4">${stock.name}</td>
+                        <td>${formatMoney(stock.price)}</td>
+                        <td class="${getPLClass(stock.change)}">${getChangeText(stock.change)}</td>
+                    </tr>`;
+            });
         }
 
         async function loadCrypto() {
-            try {
-                const res = await fetch('http://127.0.0.1:8003/crypto');
-                const data = await res.json();
-                const tbody = document.getElementById('crypto-table');
-                tbody.innerHTML = '';
-                Object.entries(data.crypto).forEach(([symbol, coin]) => {
-                    const isPos = coin.change >= 0;
-                    tbody.innerHTML += `
-                        <tr>
-                            <td><strong>${symbol}</strong></td>
-                            <td style="color:#8892a4">${coin.name}</td>
-                            <td>$${coin.price.toLocaleString()}</td>
-                            <td class="${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}${coin.change}%</td>
-                        </tr>`;
-                });
-            } catch (err) {}
+            const data = await fetchData(`${API.market}/crypto`);
+            if (!data) return;
+            const tbody = document.getElementById('crypto-table');
+            tbody.innerHTML = '';
+            Object.entries(data.crypto).forEach(([symbol, coin]) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${symbol}</strong></td>
+                        <td style="color:#8892a4">${coin.name}</td>
+                        <td>${formatMoney(coin.price)}</td>
+                        <td class="${getPLClass(coin.change)}">${getChangeText(coin.change)}</td>
+                    </tr>`;
+            });
         }
 
         async function loadWatchlist() {
-            try {
-                const res = await fetch(`http://127.0.0.1:8006/watchlist/${username}`);
-                const data = await res.json();
-                const tbody = document.getElementById('watchlist-table');
-                tbody.innerHTML = '';
-                if (data.watchlist.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="loading">No items in watchlist</td></tr>';
-                    return;
-                }
-                data.watchlist.forEach(item => {
-                    const isPos = item.change >= 0;
-                    tbody.innerHTML += `
-                        <tr>
-                            <td><strong>${item.symbol}</strong></td>
-                            <td style="color:#8892a4">${item.name}</td>
-                            <td>$${item.price.toLocaleString()}</td>
-                            <td class="${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}${item.change}%</td>
-                            <td>
-                                <button onclick="removeFromWatchlist('${item.symbol}')"
-                                style="padding:5px 10px; background:transparent; border:1px solid #ff4d4d; color:#ff4d4d; border-radius:5px; cursor:pointer; font-size:0.8rem;">
-                                Remove</button>
-                            </td>
-                        </tr>`;
-                });
-            } catch (err) {}
+            const data = await fetchData(`${API.watchlist}/watchlist/${getUsername()}`);
+            if (!data) return;
+            const tbody = document.getElementById('watchlist-table');
+            tbody.innerHTML = '';
+            if (data.watchlist.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">No items in watchlist</td></tr>';
+                return;
+            }
+            data.watchlist.forEach(item => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${item.symbol}</strong></td>
+                        <td style="color:#8892a4">${item.name}</td>
+                        <td>${formatMoney(item.price)}</td>
+                        <td class="${getPLClass(item.change)}">${getChangeText(item.change)}</td>
+                        <td>
+                            <button onclick="removeFromWatchlist('${item.symbol}')"
+                            style="padding:5px 10px; background:transparent; border:1px solid #ff4d4d; color:#ff4d4d; border-radius:5px; cursor:pointer; font-size:0.8rem;">
+                            Remove</button>
+                        </td>
+                    </tr>`;
+            });
         }
 
         async function addToWatchlist() {
-            const symbol = document.getElementById('watch-symbol').value;
-            const name = document.getElementById('watch-name').value;
-            const price = parseFloat(document.getElementById('watch-price').value);
-            const change = parseFloat(document.getElementById('watch-change').value);
-            const msg = document.getElementById('watch-msg');
-
-            try {
-                const res = await fetch('http://127.0.0.1:8006/watchlist/add', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, symbol, name, price, change })
-                });
-                const data = await res.json();
-                msg.style.color = data.success ? '#00d09c' : '#ff4d4d';
-                msg.textContent = data.message;
-                if (data.success) loadWatchlist();
-            } catch (err) {
-                msg.style.color = '#ff4d4d';
-                msg.textContent = 'Error adding to watchlist!';
-            }
+            const body = {
+                username: getUsername(),
+                symbol: document.getElementById('watch-symbol').value,
+                name: document.getElementById('watch-name').value,
+                price: parseFloat(document.getElementById('watch-price').value),
+                change: parseFloat(document.getElementById('watch-change').value)
+            };
+            const data = await postData(`${API.watchlist}/watchlist/add`, body);
+            showMessage('watch-msg', data.message, data.success);
+            if (data.success) loadWatchlist();
         }
 
         async function removeFromWatchlist(symbol) {
-            try {
-                await fetch(`http://127.0.0.1:8006/watchlist/${username}/${symbol}`, { method: 'DELETE' });
-                loadWatchlist();
-            } catch (err) {}
-        }
-
-        function logout() {
-            localStorage.removeItem('username');
-            window.location.href = '../index.html';
+            await deleteData(`${API.watchlist}/watchlist/${getUsername()}/${symbol}`);
+            loadWatchlist();
         }
 
         loadMarketSummary();
