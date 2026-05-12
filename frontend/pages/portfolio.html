@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio - FinVest</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">💹 FinVest</div>
+        <div class="navbar-links">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="portfolio.html" class="active">Portfolio</a>
+            <a href="market.html">Market</a>
+            <a href="news.html">News</a>
+        </div>
+        <div class="navbar-right">
+            <span class="user-info">👤 <span id="username-display"></span></span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <h1 class="page-title">💼 My Portfolio</h1>
+
+        <!-- Summary Cards -->
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-label">Total Invested</div>
+                <div class="card-value" id="total-invested">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Current Value</div>
+                <div class="card-value" id="current-value">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Profit / Loss</div>
+                <div class="card-value" id="profit-loss">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-label">P/L Percentage</div>
+                <div class="card-value" id="pl-percent">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Add Investment -->
+        <div class="table-container" style="margin-bottom:25px;">
+            <h2>➕ Add Investment</h2>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-top:15px;">
+                <input type="text" id="add-symbol" placeholder="Symbol (AAPL)" style="padding:10px; background:#0a0e1a; border:1px solid #1e2d40; border-radius:8px; color:#fff;">
+                <input type="text" id="add-name" placeholder="Company Name" style="padding:10px; background:#0a0e1a; border:1px solid #1e2d40; border-radius:8px; color:#fff;">
+                <input type="number" id="add-shares" placeholder="Shares" style="padding:10px; background:#0a0e1a; border:1px solid #1e2d40; border-radius:8px; color:#fff;">
+                <input type="number" id="add-buy-price" placeholder="Buy Price ($)" style="padding:10px; background:#0a0e1a; border:1px solid #1e2d40; border-radius:8px; color:#fff;">
+                <input type="number" id="add-current-price" placeholder="Current Price ($)" style="padding:10px; background:#0a0e1a; border:1px solid #1e2d40; border-radius:8px; color:#fff;">
+                <button class="btn-primary" onclick="addInvestment()">Add</button>
+            </div>
+            <p id="add-msg" style="margin-top:10px; font-size:0.9rem;"></p>
+        </div>
+
+        <!-- Portfolio Table -->
+        <div class="table-container">
+            <h2>📊 My Investments</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Name</th>
+                        <th>Shares</th>
+                        <th>Buy Price</th>
+                        <th>Current Price</th>
+                        <th>Total Value</th>
+                        <th>P/L</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="portfolio-table">
+                    <tr><td colspan="8" class="loading">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const username = localStorage.getItem('username') || 'user1';
+        document.getElementById('username-display').textContent = username;
+
+        async function loadPortfolio() {
+            try {
+                const res = await fetch(`http://127.0.0.1:8002/portfolio/${username}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    const pl = data.profit_loss;
+                    document.getElementById('total-invested').textContent = `$${data.total_invested.toLocaleString()}`;
+                    document.getElementById('current-value').textContent = `$${data.total_current_value.toLocaleString()}`;
+                    
+                    const plEl = document.getElementById('profit-loss');
+                    plEl.textContent = `$${pl.toLocaleString()}`;
+                    plEl.className = `card-value ${pl >= 0 ? 'positive' : 'negative'}`;
+
+                    const plPct = document.getElementById('pl-percent');
+                    plPct.textContent = `${data.profit_loss_percent}%`;
+                    plPct.className = `card-value ${pl >= 0 ? 'positive' : 'negative'}`;
+
+                    const tbody = document.getElementById('portfolio-table');
+                    tbody.innerHTML = '';
+                    data.investments.forEach(inv => {
+                        const totalValue = inv.shares * inv.current_price;
+                        const pl = totalValue - (inv.shares * inv.buy_price);
+                        const isPos = pl >= 0;
+                        tbody.innerHTML += `
+                            <tr>
+                                <td><strong>${inv.symbol}</strong></td>
+                                <td style="color:#8892a4">${inv.name}</td>
+                                <td>${inv.shares}</td>
+                                <td>$${inv.buy_price}</td>
+                                <td>$${inv.current_price}</td>
+                                <td>$${totalValue.toFixed(2)}</td>
+                                <td class="${isPos ? 'positive' : 'negative'}">$${pl.toFixed(2)}</td>
+                                <td>
+                                    <button onclick="removeInvestment('${inv.symbol}')" 
+                                    style="padding:5px 10px; background:transparent; border:1px solid #ff4d4d; color:#ff4d4d; border-radius:5px; cursor:pointer; font-size:0.8rem;">
+                                    Remove</button>
+                                </td>
+                            </tr>`;
+                    });
+                }
+            } catch (err) {
+                document.getElementById('portfolio-table').innerHTML = '<tr><td colspan="8">Error loading</td></tr>';
+            }
+        }
+
+        async function addInvestment() {
+            const symbol = document.getElementById('add-symbol').value;
+            const name = document.getElementById('add-name').value;
+            const shares = document.getElementById('add-shares').value;
+            const buy_price = document.getElementById('add-buy-price').value;
+            const current_price = document.getElementById('add-current-price').value;
+            const msg = document.getElementById('add-msg');
+
+            try {
+                const res = await fetch('http://127.0.0.1:8002/portfolio/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, symbol, name, shares: parseFloat(shares), buy_price: parseFloat(buy_price), current_price: parseFloat(current_price) })
+                });
+                const data = await res.json();
+                msg.style.color = data.success ? '#00d09c' : '#ff4d4d';
+                msg.textContent = data.message;
+                if (data.success) loadPortfolio();
+            } catch (err) {
+                msg.style.color = '#ff4d4d';
+                msg.textContent = 'Error adding investment!';
+            }
+        }
+
+        async function removeInvestment(symbol) {
+            try {
+                await fetch(`http://127.0.0.1:8002/portfolio/${username}/${symbol}`, { method: 'DELETE' });
+                loadPortfolio();
+            } catch (err) {}
+        }
+
+        function logout() {
+            localStorage.removeItem('username');
+            window.location.href = '../index.html';
+        }
+
+        loadPortfolio();
+    </script>
+</body>
+</html>

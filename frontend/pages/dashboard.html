@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - FinVest</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">💹 FinVest</div>
+        <div class="navbar-links">
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="portfolio.html">Portfolio</a>
+            <a href="market.html">Market</a>
+            <a href="news.html">News</a>
+        </div>
+        <div class="navbar-right">
+            <button class="notif-btn" onclick="toggleNotifications()">
+                🔔 <span class="notif-badge" id="notif-count">0</span>
+            </button>
+            <span class="user-info">👤 <span id="username-display"></span></span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Notifications Panel -->
+    <div id="notif-panel" style="display:none; position:fixed; top:70px; right:20px; width:350px; background:#111827; border:1px solid #1e2d40; border-radius:15px; padding:20px; z-index:999; box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <h3 style="margin-bottom:15px; color:#fff;">🔔 Notifications</h3>
+        <div id="notif-list"><p class="loading">Loading...</p></div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <h1 class="page-title">📊 Dashboard</h1>
+
+        <!-- Summary Cards -->
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-label">Total Invested</div>
+                <div class="card-value" id="total-invested">Loading...</div>
+                <div class="card-change" id="invested-change"></div>
+            </div>
+            <div class="card">
+                <div class="card-label">Current Value</div>
+                <div class="card-value" id="current-value">Loading...</div>
+                <div class="card-change positive" id="value-change"></div>
+            </div>
+            <div class="card">
+                <div class="card-label">Profit / Loss</div>
+                <div class="card-value" id="profit-loss">Loading...</div>
+                <div class="card-change" id="pl-percent"></div>
+            </div>
+            <div class="card">
+                <div class="card-label">Market Status</div>
+                <div class="card-value" style="color:#00d09c;" id="market-status">Loading...</div>
+                <div class="card-change" id="market-info"></div>
+            </div>
+        </div>
+
+        <!-- Stocks + Crypto -->
+        <div class="section-grid">
+            <div class="table-container">
+                <h2>📈 Top Stocks</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Change</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stocks-table">
+                        <tr><td colspan="4" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <h2>🪙 Crypto</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Change</th>
+                        </tr>
+                    </thead>
+                    <tbody id="crypto-table">
+                        <tr><td colspan="4" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Latest News -->
+        <div class="table-container">
+            <h2>📰 Latest Financial News</h2>
+            <div class="news-grid" id="news-container">
+                <p class="loading">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check login
+        const username = localStorage.getItem('username') || 'user1';
+        document.getElementById('username-display').textContent = username;
+
+        // Load Portfolio Summary
+        async function loadPortfolio() {
+            try {
+                const res = await fetch(`http://127.0.0.1:8002/portfolio/${username}`);
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('total-invested').textContent = `$${data.total_invested.toLocaleString()}`;
+                    document.getElementById('current-value').textContent = `$${data.total_current_value.toLocaleString()}`;
+                    const pl = data.profit_loss;
+                    const plEl = document.getElementById('profit-loss');
+                    plEl.textContent = `$${pl.toLocaleString()}`;
+                    plEl.className = `card-value ${pl >= 0 ? 'positive' : 'negative'}`;
+                    document.getElementById('pl-percent').textContent = `${data.profit_loss_percent}%`;
+                    document.getElementById('pl-percent').className = `card-change ${pl >= 0 ? 'positive' : 'negative'}`;
+                }
+            } catch (err) {
+                document.getElementById('total-invested').textContent = 'Error';
+            }
+        }
+
+        // Load Stocks
+        async function loadStocks() {
+            try {
+                const res = await fetch('http://127.0.0.1:8003/stocks');
+                const data = await res.json();
+                const tbody = document.getElementById('stocks-table');
+                tbody.innerHTML = '';
+                Object.entries(data.stocks).forEach(([symbol, stock]) => {
+                    const isPos = stock.change >= 0;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${symbol}</strong></td>
+                            <td style="color:#8892a4">${stock.name}</td>
+                            <td>$${stock.price.toLocaleString()}</td>
+                            <td class="${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}${stock.change}%</td>
+                        </tr>`;
+                });
+            } catch (err) {
+                document.getElementById('stocks-table').innerHTML = '<tr><td colspan="4">Error loading</td></tr>';
+            }
+        }
+
+        // Load Crypto
+        async function loadCrypto() {
+            try {
+                const res = await fetch('http://127.0.0.1:8003/crypto');
+                const data = await res.json();
+                const tbody = document.getElementById('crypto-table');
+                tbody.innerHTML = '';
+                Object.entries(data.crypto).forEach(([symbol, coin]) => {
+                    const isPos = coin.change >= 0;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${symbol}</strong></td>
+                            <td style="color:#8892a4">${coin.name}</td>
+                            <td>$${coin.price.toLocaleString()}</td>
+                            <td class="${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}${coin.change}%</td>
+                        </tr>`;
+                });
+            } catch (err) {
+                document.getElementById('crypto-table').innerHTML = '<tr><td colspan="4">Error loading</td></tr>';
+            }
+        }
+
+        // Load Market Summary
+        async function loadMarket() {
+            try {
+                const res = await fetch('http://127.0.0.1:8003/market/summary');
+                const data = await res.json();
+                document.getElementById('market-status').textContent = data.market_status;
+                document.getElementById('market-info').textContent = `Top Gainer: ${data.top_gainer} | Top Loser: ${data.top_loser}`;
+            } catch (err) {}
+        }
+
+        // Load News
+        async function loadNews() {
+            try {
+                const res = await fetch('http://127.0.0.1:8004/news');
+                const data = await res.json();
+                const container = document.getElementById('news-container');
+                container.innerHTML = '';
+                data.news.slice(0, 3).forEach(news => {
+                    container.innerHTML += `
+                        <div class="news-card">
+                            <span class="news-category">${news.category}</span>
+                            <div class="news-title">${news.title}</div>
+                            <div class="news-summary">${news.summary}</div>
+                            <div class="news-footer">
+                                <span>${news.source} · ${news.time}</span>
+                                <span class="news-sentiment ${news.bullish ? 'bullish' : 'bearish'}">${news.bullish ? '🟢 Bullish' : '🔴 Bearish'}</span>
+                            </div>
+                        </div>`;
+                });
+            } catch (err) {}
+        }
+
+        // Load Notifications
+        async function loadNotifications() {
+            try {
+                const res = await fetch(`http://127.0.0.1:8007/notifications/${username}`);
+                const data = await res.json();
+                document.getElementById('notif-count').textContent = data.unread || 0;
+                const list = document.getElementById('notif-list');
+                list.innerHTML = '';
+                data.notifications.forEach(n => {
+                    list.innerHTML += `
+                        <div style="padding:10px; border-bottom:1px solid #1e2d40; opacity:${n.read ? '0.5' : '1'}">
+                            <div style="font-size:0.85rem; color:#fff">${n.message}</div>
+                            <div style="font-size:0.75rem; color:#8892a4; margin-top:4px">${n.time}</div>
+                        </div>`;
+                });
+            } catch (err) {}
+        }
+
+        function toggleNotifications() {
+            const panel = document.getElementById('notif-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function logout() {
+            localStorage.removeItem('username');
+            window.location.href = '../index.html';
+        }
+
+        // Load everything
+        loadPortfolio();
+        loadStocks();
+        loadCrypto();
+        loadMarket();
+        loadNews();
+        loadNotifications();
+    </script>
+</body>
+</html>

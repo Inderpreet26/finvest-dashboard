@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News - FinVest</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">💹 FinVest</div>
+        <div class="navbar-links">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="portfolio.html">Portfolio</a>
+            <a href="market.html">Market</a>
+            <a href="news.html" class="active">News</a>
+        </div>
+        <div class="navbar-right">
+            <span class="user-info">👤 <span id="username-display"></span></span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <h1 class="page-title">📰 Financial News</h1>
+
+        <!-- Sentiment Cards -->
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-label">Overall Sentiment</div>
+                <div class="card-value" id="overall-sentiment">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Bullish News</div>
+                <div class="card-value positive" id="bullish-count">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Bearish News</div>
+                <div class="card-value negative" id="bearish-count">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Total Articles</div>
+                <div class="card-value" id="total-news">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Category Filter -->
+        <div style="margin-bottom:25px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="tab-btn active" onclick="filterNews('all', this)">All</button>
+            <button class="tab-btn" onclick="filterNews('Stocks', this)">Stocks</button>
+            <button class="tab-btn" onclick="filterNews('Crypto', this)">Crypto</button>
+            <button class="tab-btn" onclick="filterNews('Economy', this)">Economy</button>
+            <button class="tab-btn" onclick="filterNews('Technology', this)">Technology</button>
+        </div>
+
+        <!-- News Grid -->
+        <div class="news-grid" id="news-container">
+            <p class="loading">Loading...</p>
+        </div>
+    </div>
+
+    <script>
+        const username = localStorage.getItem('username') || 'user1';
+        document.getElementById('username-display').textContent = username;
+
+        let allNews = [];
+
+        async function loadSentiment() {
+            try {
+                const res = await fetch('http://127.0.0.1:8004/news/sentiment/summary');
+                const data = await res.json();
+                const sentEl = document.getElementById('overall-sentiment');
+                sentEl.textContent = data.overall_sentiment;
+                sentEl.className = `card-value ${data.overall_sentiment === 'Bullish' ? 'positive' : 'negative'}`;
+                document.getElementById('bullish-count').textContent = data.bullish;
+                document.getElementById('bearish-count').textContent = data.bearish;
+            } catch (err) {}
+        }
+
+        async function loadNews() {
+            try {
+                const res = await fetch('http://127.0.0.1:8004/news');
+                const data = await res.json();
+                allNews = data.news;
+                document.getElementById('total-news').textContent = data.total;
+                renderNews(allNews);
+            } catch (err) {}
+        }
+
+        function renderNews(news) {
+            const container = document.getElementById('news-container');
+            container.innerHTML = '';
+            if (news.length === 0) {
+                container.innerHTML = '<p class="loading">No news found</p>';
+                return;
+            }
+            news.forEach(n => {
+                container.innerHTML += `
+                    <div class="news-card">
+                        <span class="news-category">${n.category}</span>
+                        <div class="news-title">${n.title}</div>
+                        <div class="news-summary">${n.summary}</div>
+                        <div class="news-footer">
+                            <span>${n.source} · ${n.time}</span>
+                            <span class="news-sentiment ${n.bullish ? 'bullish' : 'bearish'}">
+                                ${n.bullish ? '🟢 Bullish' : '🔴 Bearish'}
+                            </span>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function filterNews(category, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (category === 'all') {
+                renderNews(allNews);
+            } else {
+                renderNews(allNews.filter(n => n.category === category));
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('username');
+            window.location.href = '../index.html';
+        }
+
+        loadSentiment();
+        loadNews();
+    </script>
+</body>
+</html>

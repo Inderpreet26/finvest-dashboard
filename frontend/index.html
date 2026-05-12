@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinVest - Finance Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-body">
+
+    <div class="auth-container">
+        <!-- Logo -->
+        <div class="auth-logo">
+            <h1>💹 FinVest</h1>
+            <p>Your Smart Investment Dashboard</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="auth-tabs">
+            <button class="tab-btn active" onclick="showTab('login')">Login</button>
+            <button class="tab-btn" onclick="showTab('register')">Register</button>
+        </div>
+
+        <!-- Login Form -->
+        <div id="login-tab" class="auth-form">
+            <input type="email" id="login-email" placeholder="Email Address" />
+            <input type="password" id="login-password" placeholder="Password" />
+            <button class="btn-primary" onclick="login()">Login</button>
+            <p id="login-msg" class="auth-msg"></p>
+        </div>
+
+        <!-- Register Form -->
+        <div id="register-tab" class="auth-form" style="display:none;">
+            <input type="text" id="reg-username" placeholder="Full Name" />
+            <input type="email" id="reg-email" placeholder="Email Address" />
+            <input type="password" id="reg-password" placeholder="Password" />
+            <button class="btn-primary" onclick="register()">Create Account</button>
+            <p id="reg-msg" class="auth-msg"></p>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tab) {
+            document.getElementById('login-tab').style.display = tab === 'login' ? 'flex' : 'none';
+            document.getElementById('register-tab').style.display = tab === 'register' ? 'flex' : 'none';
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const msg = document.getElementById('login-msg');
+
+            try {
+                const res = await fetch('http://127.0.0.1:8001/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('username', data.username);
+                    window.location.href = 'pages/dashboard.html';
+                } else {
+                    msg.style.color = 'red';
+                    msg.textContent = data.message;
+                }
+            } catch (err) {
+                msg.style.color = 'red';
+                msg.textContent = 'Server not running!';
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const msg = document.getElementById('reg-msg');
+
+            try {
+                const res = await fetch('http://127.0.0.1:8001/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    msg.style.color = 'green';
+                    msg.textContent = 'Registered! Please login now.';
+                } else {
+                    msg.style.color = 'red';
+                    msg.textContent = data.message;
+                }
+            } catch (err) {
+                msg.style.color = 'red';
+                msg.textContent = 'Server not running!';
+            }
+        }
+    </script>
+</body>
+</html>
